@@ -18,8 +18,6 @@ file_path2 = "C:\\Users\\AdminAkro\\Downloads\\[WMATA] Trigger Condition Faults 
 s_name2 = 0 #nome foglio da confrontare
 col_name2 ='TriggerCondition' #nome colonna da confrontare
 file_path_output = "C:\\Users\\AdminAkro\\Downloads\\out.xlsx"
-col1 = []
-col2 = []
 col3 = []
 cell3 = ""
 threshold = 0.3
@@ -78,15 +76,15 @@ def number_of_row(file_path, sheet):
         print(f"Errore durante il conteggio delle righe nel foglio {sheet}: {e}")
         return -1  # Indicatore di errore
 
-def get_cell(row_index, col_name, sheet, file_path):
+def get_cell(row_index, col_index, sheet, file_path):
     try:
         # Leggi il file Excel
         xls = pd.read_excel(file_path, sheet_name=sheet)
         # Recupera il valore della cella
-        cell_value = xls.at[row_index, col_name]
+        cell_value = xls.at[row_index, col_index]
         return str(cell_value)  # Restituisce il valore della cella come stringa
     except Exception as e:
-        print(f"Errore durante l'accesso alla cella nella riga {row_index}, colonna {col_name} nel foglio {sheet}: {e}")
+        print(f"Errore durante l'accesso alla cella nella riga {row_index}, colonna {col_index} nel foglio {sheet}: {e}")
         return None
 
 def cut_row(row, index_row_cut=9):
@@ -97,18 +95,21 @@ def process_sheets(sheet1, sheet2):
     try:
         col1 = read_excel_column(file_path1, sheet1, col_name1)
         col2 = read_excel_column(file_path2, sheet2, col_name2)
-        for row_index1 in range(1, row_number1 + 1):
-            for row_index2 in range(1, row_number2 + 1):
-                row1 = cut_row(read_excel_row(file_path1, sheet1, row_index=row_index1))
-                row2 = cut_row(read_excel_row(file_path1, sheet1, row_index=row_index2))
-                if row1 == row2:
-                    cell1 = get_cell(row_index1, col_name1, sheet1, file_path1)
-                    cell2 = get_cell(row_index2, col_name2, sheet2, file_path2)
-                    if (cell1, cell2) not in already_compared or (cell2, cell1) not in already_compared:
-                        cell3 = cell_union(cell1, cell2)
-                        already_compared.add((cell1, cell2))
-                        print(cell3)
-                        col3.append(cell3)
+
+        for col_index1 in range(len(col1)):
+            for col_index2 in range(len(col2)):
+                for row_index1 in range(1, row_number1 + 1):
+                    for row_index2 in range(1, row_number2 + 1):
+                        row1 = cut_row(read_excel_row(file_path1, sheet1, row_index=row_index1))
+                        row2 = cut_row(read_excel_row(file_path1, sheet1, row_index=row_index2))
+                        if row1 == row2:
+                            cell1 = get_cell(row_index1, col_index1, sheet1, file_path1)
+                            cell2 = get_cell(row_index2, col_index2, sheet2, file_path2)
+                            if (cell1, cell2) not in already_compared or (cell2, cell1) not in already_compared:
+                                cell3 = cell_union(cell1, cell2)
+                                already_compared.add((cell1, cell2))
+                                print(cell3)
+                                col3.append(cell3)
                     write_excel_with_dataframe(file_path_output, pd.DataFrame({"TriggerCondition" :col3}))
     except Exception as e:
         print(f"La pagina {sheet2} nel file {file_path2} non ha una colonna chiamata {col_name2}")
@@ -129,7 +130,7 @@ if __name__ == '__main__':
                     #thread = threading.Thread(target=process_sheets, args=(sheet1, sheet2))
                     #threads.append(thread)
                     #thread.start()
-        for thread in threads:
-            thread.join()
+        #for thread in threads:
+         #   thread.join()
 
 print("Ho finito")
