@@ -2,6 +2,7 @@ import moonshine_onnx as moonshine # or import moonshine_onnx
 from pydub import AudioSegment
 import os
 
+#To-Do: add italian languange. Moonshine maybe don't support italian, check it
 
 def split_mp3(file_path, segment_length_minutes=1):
     # Carica il file audio
