@@ -144,11 +144,16 @@ def there_is_a_column(xls, sheet_name, col_name):
         return False
 
 def create_complete_file(column_to_write):
+    column = []
+    for cell in column_to_write:
+        cell = cell.replace("\n", "_pippo")
+        column.append(cell)
+
     sheet_names = list_of_sheets(file_path_output_new)
     for sheet_name in sheet_names:
         xls = pd.read_excel(file_path_output_new, sheet_name=sheet_name, header=0)
         if sheet_name == sheet_name1 and there_is_a_column(xls, sheet_name, col_name1):
-            xls[col_name1] = column_to_write
+            xls[col_name1] = column
             #xls.replace('\n', '\r\n')
             write_excel(xls, file_path_output_updated, sheet_name)
 
@@ -195,7 +200,7 @@ if __name__ == '__main__':
                     # in a new cell3. This cell3s will populate col3
                     process_sheets(xls1, xls2)
                     # write col3 on a file in a sheet named sheet_name1. If the file doesn't exist, create it
-                    write_excel_with_column(file_path_output, col3, sheet_name1)
+                    write_excel(xls1, file_path_output, sheet_name1)
                     # create another new file contains all the same data as file_path_1 except
                     # the column named col_name1 which is substituted with col3.
                     create_complete_file(col3)
