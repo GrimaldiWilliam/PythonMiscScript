@@ -1,33 +1,23 @@
 import os
 import threading
-
-from concurrent.futures import ThreadPoolExecutor
-
-from openpyxl.styles import Alignment
 import pandas as pd
-#from sentence_transformers import SentenceTransformer, util
+from openpyxl.styles import Alignment
+from openpyxl.utils import get_column_letter
 
+#from sentence_transformers import SentenceTransformer, util
 #model = SentenceTransformer('all-MiniLM-L6-v2')
 
 folder = "C:\\Users\\AdminAkro\\Downloads\\"
 file_path1 = "C:\\Users\\AdminAkro\\Downloads\\[WMATA] Trigger Condition Faults List\\FE010019308_FaultsList.xlsx"
-#sheet_name1 = sheet_name
 col_name1 ='TriggerCondition'
 file_path2 = "C:\\Users\\AdminAkro\\Downloads\\[WMATA] Trigger Condition Faults List\\FE010019308_FaultsList_old.xlsx"
-#sheet_name2 = sheet_name
 col_name2 ='TriggerCondition'
 file_path_output = "C:\\Users\\AdminAkro\\Downloads\\out.xlsx"
-file_path_output_new = "C:\\Users\\AdminAkro\\Downloads\\FE010019308_FaultsList.xlsx"
+file_path_input_to_clone = "C:\\Users\\AdminAkro\\Downloads\\FE010019308_FaultsList.xlsx"
 file_path_output_updated = "C:\\Users\\AdminAkro\\Downloads\\FE010019308_FaultsList_updated.xlsx"
 col3 = []
 threshold = 0.3
 index_row_to_cut = 9
-
-processed_pairs = set()
-pairs_lock = threading.Lock()
-col3_lock = threading.Lock()
-embeddings_cache = {}
-cache_lock = threading.Lock()
 
 def get_embedding_cached(text):
     print(f"Getting embedding for text: {text}")
@@ -80,25 +70,19 @@ def write_excel_with_column(file_path, column_to_write, sheet_name):
 def write_excel(df, file_path, sheet_name):
     try:
         if not os.path.exists(file_path):
-            with pd.ExcelWriter(file_path, mode='w', engine='openpyxl') as writer:
-                df.to_excel(writer, sheet_name=sheet_name, index=False)
-                df.replace('\n', '\r\n')
-                # Imposta il wrap text per la colonna
-                worksheet = writer.sheets[sheet_name]
-                for cell in worksheet[f"{chr(65)}:{chr(65)}"]:
-                    cell.alignment = Alignment(wrapText=True)
-
+            mode = Literal('w')
         else:
-            with (pd.ExcelWriter(file_path, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer):
-                df.to_excel(writer, sheet_name=sheet_name, index=False)
-                df.replace('\n', '\r\n')
-                # Imposta il wrap text per la colonna
-                worksheet = writer.sheets[sheet_name]
-                for cell in worksheet[f"{chr(65)}:{chr(65)}"]:
+            mode = Literal('a')
+
+        with pd.ExcelWriter(file_path, mode=mode, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+            # Set wrap text on all cells in the sheet
+            worksheet = writer.sheets[sheet_name]
+            for col in worksheet.iter_cols(min_col=1, max_col=worksheet.max_column):
+                col_index = col[0].column
+                for cell in col:
                     cell.alignment = Alignment(wrapText=True)
-                    #cell.alignment.copy(wrapText=True)
-
-
+                worksheet.column_dimensions[get_column_letter(col_index)].width = 50
         print(f"I wrote the file {file_path} in {sheet_name}")
     except Exception as e:
         print(f"Error writing the file {file_path}: {e}")
@@ -108,21 +92,16 @@ def cell_union(cell1, cell2):
     lines2 = str(cell2).split('\n')
     if not lines1[0].strip() == lines2[0].strip() and not are_conceptually_similar(cell1, cell2):
         string = f"{cell1} \n {cell2}"
-    elif are_conceptually_similar(cell1, cell2):
-        string = f"{cell1}"
-    elif lines1[0].strip() == lines2[0].strip():
-        string = f"{cell1}"
     else:
         string = f"{cell1}"
-    string = string.replace("\n", "\r\n")
     return string
 
 def number_of_row(xls):
     try:
-        return xls.shape[0]  # Return row number
+        return xls.shape[0]
     except Exception as e:
         print(f"Error counting row: {e}")
-        return -1  # There is an error
+        return -1
 
 def get_cell(xls, row_index, col_index):
     try:
@@ -130,7 +109,7 @@ def get_cell(xls, row_index, col_index):
         return str(cell_value)
     except Exception as e:
         print(f"Error reading cell at row {row_index}, column {col_index}: {e}")
-    #  return None
+        return None
 
 def cut_row(row, index_row_cut):
     return row[:index_row_cut]
@@ -144,17 +123,12 @@ def there_is_a_column(xls, sheet_name, col_name):
         return False
 
 def create_complete_file(column_to_write):
-    column = []
-    for cell in column_to_write:
-        cell = cell.replace("\n", "_pippo")
-        column.append(cell)
-
     sheet_names = list_of_sheets(file_path_output_new)
     for sheet_name in sheet_names:
         xls = pd.read_excel(file_path_output_new, sheet_name=sheet_name, header=0)
         if sheet_name == sheet_name1 and there_is_a_column(xls, sheet_name, col_name1):
-            xls[col_name1] = column
-            #xls.replace('\n', '\r\n')
+            xls[col_name1] = column_to_write
+            print(xls[col_name1])
             write_excel(xls, file_path_output_updated, sheet_name)
 
 def process_sheets(xls1, xls2):
@@ -177,8 +151,6 @@ def process_sheets(xls1, xls2):
             continue
 
 if __name__ == '__main__':
-    please = input("Come si dice?")
-    if please == "Per favore" or please == "per favore" or please == "PER FAVORE":
         sheet_names1 = list_of_sheets(file_path1)
         sheet_names2 = list_of_sheets(file_path2)
 
@@ -200,7 +172,7 @@ if __name__ == '__main__':
                     # in a new cell3. This cell3s will populate col3
                     process_sheets(xls1, xls2)
                     # write col3 on a file in a sheet named sheet_name1. If the file doesn't exist, create it
-                    write_excel(xls1, file_path_output, sheet_name1)
+                    write_excel_with_column(file_path_output, col3, sheet_name1)
                     # create another new file contains all the same data as file_path_1 except
                     # the column named col_name1 which is substituted with col3.
                     create_complete_file(col3)
@@ -209,5 +181,3 @@ if __name__ == '__main__':
                 else:
                     continue
         print("I've finished")
-    else:
-        print(":(")
